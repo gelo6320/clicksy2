@@ -569,3 +569,46 @@ body {
 .hidden {
   display: none !important;
 }
+/* .btn-ritira grande con più padding e font-size */
+.btn-ritira {
+  display: inline-block;
+  background-color: #f39c12;
+  color: #fff;
+  border: none;
+  padding: 16px 28px; /* più grande */
+  font-size: 1.1em;  /* leggermente più grande di default */
+  font-weight: bold;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 14px; /* più distanziato */
+  margin-bottom: 14px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  position: relative;
+  transition: background-color 0.3s ease, font-size 0.3s ease;
+}
+.btn-ritira:hover {
+  background-color: #e68a00;
+}
+/* Ecc... */
+
+/* Vetrina Ultime Vincite => font-size più grande */
+#vetrinaScorrevole h2 {
+  font-size: 1em; /* da 0.9em a 1em */
+  margin-bottom: 10px;
+  color: #d32f2f;
+  font-weight: 700;
+  position: relative;
+}
+/* .vetrina-item rimane con font-size: 0.8em, ad esempio */
+.vetrina-item span {
+  font-size: 0.8em;
+  color: #555;
+  text-align: center;
+}
+/* ... */
+
+/* "Aggiorna Email": box appare al click, di default display:none */
+#editEmailForm {
+  display: none;
+}
+/* ... (resto invariato) */
