@@ -101,14 +101,24 @@ function loadSocial() {
 
 // Ottengo userData e applico logica
 function getUserData() {
+  console.log("Fetching user data...");
   return fetch("/api/user")
     .then(r => {
       if (!r.ok) throw new Error("User not found");
       return r.json();
+    })
+    .then(data => {
+      console.log("User data fetched:", data);
+      return data;
+    })
+    .catch(err => {
+      console.error("Errore nel fetch dei dati utente:", err);
+      throw err;
     });
 }
 
 function saveUserData(body) {
+  console.log("Saving user data:", body);
   return fetch("/api/user", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -117,6 +127,14 @@ function saveUserData(body) {
     .then(r => {
       if (!r.ok) throw new Error("Errore nel salvataggio dei dati utente");
       return r.json();
+    })
+    .then(data => {
+      console.log("User data saved:", data);
+      return data;
+    })
+    .catch(err => {
+      console.error("Errore nella funzione saveUserData:", err);
+      throw err;
     });
 }
 
@@ -124,25 +142,31 @@ function saveUserData(body) {
 function checkReferralParam() {
   const ref = getQueryParam("ref");
   if (ref) {
+    console.log("Referral parameter detected:", ref);
     fetch(`/api/referral?ref=${encodeURIComponent(ref)}`)
       .then(r => r.json())
       .then(d => console.log("Referral param registrato:", d))
       .catch(err => console.error("Errore nel registrare il referral:", err));
+  } else {
+    console.log("Nessun parametro referral rilevato.");
   }
 }
 
 function initReferralLink(userD) {
   if (!userD.referralCode) {
-    // In un mondo perfetto generiamo server-side
-    userD.referralCode = "REF-" + Math.random().toString(36).substr(2, 9);
+    // Genera un referralCode unico
+    userD.referralCode = "REF-" + Math.random().toString(36).substr(2, 9).toUpperCase();
+    console.log("Generato referralCode:", userD.referralCode);
     // Salva il referralCode generato
     saveUserData({ referralCode: userD.referralCode })
       .then(updated => {
+        console.log("ReferralCode salvato:", updated.referralCode);
         userData = updated;
         updateReferralLink(updated.referralCode);
       })
       .catch(err => console.error("Errore nel salvare il referralCode:", err));
   } else {
+    console.log("ReferralCode esistente:", userD.referralCode);
     updateReferralLink(userD.referralCode);
   }
 }
@@ -152,11 +176,13 @@ function updateReferralLink(referralCode) {
   const personalLink = `${base}?ref=${referralCode}`;
   referralLink.href = personalLink;
   referralLink.textContent = personalLink;
+  console.log("Link di referral aggiornato:", personalLink);
 }
 
 copyButton?.addEventListener("click", () => {
   navigator.clipboard.writeText(referralLink.textContent)
     .then(() => {
+      console.log("Link di referral copiato negli appunti:", referralLink.textContent);
       copiedIcon.style.display = "block";
       setTimeout(() => copiedIcon.style.display = "none", 1500);
     })
@@ -167,15 +193,20 @@ copyButton?.addEventListener("click", () => {
 
 // ADMIN LOGIC
 function loadAdminData() {
+  console.log("Caricamento dati admin...");
   fetch("/api/accessCount")
     .then(r => r.json())
-    .then(d => totalAccessCount.textContent = d.totalAccessCount)
+    .then(d => {
+      console.log("Access count:", d);
+      totalAccessCount.textContent = d.totalAccessCount;
+    })
     .catch(err => console.error("Errore nel caricamento accessCount:", err));
 
   fetch("/api/contacts")
     .then(r => r.json())
     .then(arr => {
       contactsListInput.value = arr.join("\n");
+      console.log("Contacts list loaded:", arr);
     })
     .catch(err => console.error("Errore nel caricamento contacts:", err));
 
@@ -184,6 +215,7 @@ function loadAdminData() {
     .then(d => {
       instagramLinkInput.value = d.instagram || "#";
       tiktokLinkInput.value = d.tiktok || "#";
+      console.log("Social links loaded:", d);
     })
     .catch(err => console.error("Errore nel caricamento social:", err));
 
@@ -199,6 +231,7 @@ function loadAdminData() {
       if (lb.length === 0) {
         leaderboardUL.innerHTML = "<li>Nessun referral presente</li>";
       }
+      console.log("Leaderboard loaded:", lb);
     })
     .catch(err => console.error("Errore nel caricamento leaderboard:", err));
 
@@ -214,15 +247,19 @@ function loadAdminData() {
       btnSizeAdmin.value = cfg.ritiraButtonSize || "1em";
       clicksyTitleAdmin.value = cfg.clicksyTitle || "Partecipa a Clicksy!";
       bgValueAdmin.value = cfg.backgroundValue;
+      console.log("Admin config loaded:", cfg);
+
       // Se customSections esiste, iniettiamo nel DOM
       if (cfg.customSections && cfg.customSections.length > 0) {
         cfg.customSections.forEach(s => addCustomSection(s));
       }
+
       // Aggiorna interfaccia
       document.querySelectorAll("input[name='bgChoice']").forEach(rad => {
         if (rad.value === cfg.backgroundChoice) {
           rad.checked = true;
           bgChoiceRadio = rad;
+          console.log("Background choice selezionato:", rad.value);
         }
       });
     })
@@ -241,6 +278,7 @@ saveAdminConfig?.addEventListener("click", () => {
     backgroundChoice: document.querySelector("input[name='bgChoice']:checked")?.value || "color",
     backgroundValue: bgValueAdmin.value
   };
+  console.log("Salvataggio admin config:", body);
   fetch("/api/adminConfig", {
     method: "POST",
     headers: {
@@ -255,6 +293,7 @@ saveAdminConfig?.addEventListener("click", () => {
     })
     .then(d => {
       alert("Configurazione salvata!");
+      console.log("Admin config salvata:", d.adminConfig);
       adminConfig = d.adminConfig;
       applyAdminConfig(d.adminConfig);
     })
@@ -268,8 +307,13 @@ saveAdminConfig?.addEventListener("click", () => {
 addSectionButton?.addEventListener("click", () => {
   const stype = newSectionType.value; // text o code
   const scontent = newSectionContent.value;
-  if (!scontent.trim()) return;
+  if (!scontent.trim()) {
+    alert("Inserisci contenuto valido per la nuova sezione.");
+    return;
+  }
   const newSec = { type: stype, content: scontent };
+  console.log("Aggiunta nuova sezione:", newSec);
+
   // Salviamo
   fetch("/api/adminConfig", {
     method: "POST",
@@ -287,6 +331,7 @@ addSectionButton?.addEventListener("click", () => {
       adminConfig = d.adminConfig;
       addCustomSection(newSec);
       alert("Nuova sezione aggiunta!");
+      console.log("Sezione aggiunta con successo:", newSec);
     })
     .catch(err => {
       console.error("Errore nell'aggiunta della sezione:", err);
@@ -314,6 +359,7 @@ function addCustomSection(sec) {
     div.innerHTML = sec.content;
   }
   container.appendChild(div);
+  console.log("Sezione custom aggiunta al DOM:", sec);
 }
 
 // Applica config (background, testo, etc.)
@@ -342,20 +388,25 @@ function applyAdminConfig(cfg) {
   if (cfg.customSections && cfg.customSections.length > 0) {
     cfg.customSections.forEach(s => addCustomSection(s));
   }
+  console.log("Admin config applicata:", cfg);
 }
 
 // EVENT LISTENERS PER ADMIN
 adminLoginButton?.addEventListener("click", () => {
+  console.log("Tentativo di login admin.");
   if (adminUsername.value === ADMIN_USER && adminPassword.value === ADMIN_PASS) {
+    console.log("Login admin riuscito.");
     adminLoginForm.style.display = "none";
     adminContent.style.display = "block";
     loadAdminData();
   } else {
+    console.log("Credenziali admin errate.");
     alert("Credenziali errate!");
   }
 });
 
 adminLogoutButton?.addEventListener("click", () => {
+  console.log("Logout admin.");
   adminUsername.value = "";
   adminPassword.value = "";
   adminContent.style.display = "none";
@@ -368,11 +419,16 @@ adminLogoutButton?.addEventListener("click", () => {
 // Gestione timer
 function handleTimer(endTime) {
   if (endTime > Date.now()) {
-    claimButton.textContent = "Peccato, non hai vinto";
-    claimButton.disabled = true;
-    showTimer(endTime);
+    if (claimButton) {
+      claimButton.textContent = "Peccato, non hai vinto";
+      claimButton.disabled = true;
+      showTimer(endTime);
+    }
   } else {
-    claimButton.disabled = false;
+    if (claimButton) {
+      claimButton.disabled = false;
+      claimButton.textContent = btnTextAdmin?.value || "Ritira 100€";
+    }
   }
 }
 
@@ -396,7 +452,9 @@ function updateTimer(endTime) {
       claimButton.textContent = btnTextAdmin?.value || "Ritira 100€";
     }
     saveUserData({ claimed: false, timerEnd: 0 })
-      .then(() => {})
+      .then(() => {
+        console.log("Timer resettato.");
+      })
       .catch(err => console.error("Errore nel resettare i dati utente:", err));
     return;
   }
@@ -430,6 +488,7 @@ function initializeVetrina() {
     currentIndex++;
   }
   renderVetrina();
+  console.log("Vetrina inizializzata.");
 }
 
 function createItem(timestamp, index) {
@@ -442,6 +501,7 @@ function createItem(timestamp, index) {
   ];
   const msgIndex = index % messages.length;
   globalItems.push({ time: timestamp, text: messages[msgIndex] });
+  console.log("Elemento vetrina creato:", messages[msgIndex]);
 }
 
 function checkNewItem() {
@@ -476,6 +536,7 @@ function renderVetrina() {
     div.innerHTML = `<span>${item.text}</span>`;
     vetrinaItems.appendChild(div);
   });
+  console.log("Vetrina renderizzata con", globalItems.length, "elementi.");
 }
 
 function updateVetrinaTimers() {
@@ -500,30 +561,44 @@ function updateVetrinaTimers() {
     div.setAttribute("data-original-text", pureText);
     div.querySelector("span").textContent = `${displayTime} fa - ${pureText}`;
   });
+  console.log("Vetrina timers aggiornati.");
 }
 
 minimizeVetrina?.addEventListener("click", () => {
-  vetrinaScorrevole.classList.remove("show");
-  vetrinaScorrevole.classList.add("hide");
-  restoreVetrina.classList.add("visible");
+  if (vetrinaScorrevole) {
+    vetrinaScorrevole.classList.remove("show");
+    vetrinaScorrevole.classList.add("hide");
+    restoreVetrina.classList.add("visible");
+    console.log("Vetrina minimizzata.");
+  }
 });
 
 restoreVetrina?.addEventListener("click", () => {
-  vetrinaScorrevole.classList.remove("hide");
-  vetrinaScorrevole.classList.add("show");
-  restoreVetrina.classList.remove("visible");
+  if (vetrinaScorrevole) {
+    vetrinaScorrevole.classList.remove("hide");
+    vetrinaScorrevole.classList.add("show");
+    restoreVetrina.classList.remove("visible");
+    console.log("Vetrina ripristinata.");
+  }
 });
 
 // CLAIM BUTTON LOGIC
 claimButton?.addEventListener("click", () => {
-  if (!userData) return;
+  if (!userData) {
+    console.log("Dati utente non caricati.");
+    return;
+  }
   // Se già disabilitato
-  if (claimButton.disabled) return;
+  if (claimButton.disabled) {
+    console.log("Pulsante claim disabilitato.");
+    return;
+  }
 
   // Mostra spinner
   if (claimButton) {
     claimButton.innerHTML = `<span class="spinner" style="margin-right:8px;"></span>Caricamento...`;
     claimButton.disabled = true;
+    console.log("Spinner mostrato. Claim in corso...");
   }
 
   setTimeout(() => {
@@ -531,6 +606,7 @@ claimButton?.addEventListener("click", () => {
     if (claimButton) {
       claimButton.style.backgroundColor = "#e74c3c";
       claimButton.textContent = "Peccato, non hai vinto";
+      console.log("Claim effettuato: non hai vinto.");
     }
 
     // Timer 24h, a meno che arrivi da un link e non abbia usato vantaggio
@@ -543,6 +619,7 @@ claimButton?.addEventListener("click", () => {
       addDiscountToOwner(refOwner);
       // Mark usedRefBenefit
       userData.usedRefBenefit = true;
+      console.log("Vantaggio referral applicato. Nuovo timer: 10h");
     }
 
     setTimeout(() => {
@@ -557,6 +634,7 @@ claimButton?.addEventListener("click", () => {
           .then(updated => {
             userData = updated;
             handleTimer(updated.timerEnd);
+            console.log("Dati utente aggiornati dopo claim:", updated);
           })
           .catch(err => console.error("Errore nel salvare i dati utente dopo il claim:", err));
       }
@@ -566,6 +644,7 @@ claimButton?.addEventListener("click", () => {
 });
 
 function addDiscountToOwner(ownerUid) {
+  console.log("Aggiunta sconto all'owner:", ownerUid);
   // Implementazione rapida: incrementa successfulReferrals
   fetch(`/api/user/${ownerUid}`, {
     method: "POST",
@@ -589,12 +668,15 @@ initializeVetrina();
 
 // Funzione principale di inizializzazione
 function initAll() {
+  console.log("Inizializzazione del sito...");
+
   // Carico config e la applico
   fetch("/api/adminConfig")
     .then(r => r.json())
     .then(cfg => {
       adminConfig = cfg;
       applyAdminConfig(cfg);
+      console.log("Admin config applicata durante inizializzazione.");
     })
     .catch(err => console.error("Errore nel caricamento adminConfig all'inizializzazione:", err));
 
@@ -607,7 +689,12 @@ function initAll() {
       userData = u;
       // Se mail = null => popup
       if (!u.email) {
-        if (emailOverlay) emailOverlay.style.display = "flex";
+        if (emailOverlay) {
+          emailOverlay.style.display = "flex";
+          console.log("Email mancante. Mostro popup email.");
+        }
+      } else {
+        console.log("Email presente:", u.email);
       }
       // Se timer non scaduto => disabilito
       if (u.timerEnd && u.timerEnd > Date.now()) {
@@ -616,13 +703,17 @@ function initAll() {
           claimButton.style.backgroundColor = "#7f8c8d";
           claimButton.textContent = "Peccato, non hai vinto";
           showTimer(u.timerEnd);
+          console.log("Timer non scaduto. Claim disabilitato.");
         }
       } else if (u.claimed) {
         // Se claimed ma timer scaduto => re-enable
         if (u.timerEnd < Date.now()) {
           saveUserData({ claimed: false, timerEnd: 0 })
             .then(() => {
-              if (claimButton) claimButton.disabled = false;
+              if (claimButton) {
+                claimButton.disabled = false;
+                console.log("Timer scaduto. Claim abilitato.");
+              }
             })
             .catch(err => console.error("Errore nel resettare i dati utente:", err));
         } else {
@@ -632,6 +723,7 @@ function initAll() {
             claimButton.style.backgroundColor = "#7f8c8d";
             claimButton.textContent = "Peccato, non hai vinto";
             showTimer(u.timerEnd);
+            console.log("Claim disabilitato per timer non scaduto.");
           }
         }
       }
@@ -649,6 +741,7 @@ function initAll() {
   initializeVetrina();
   setInterval(updateVetrinaTimers, 1000);
   setInterval(checkNewItem, 3000);
+  console.log("Inizializzazione completata.");
 }
 
 // Apertura e chiusura del form di modifica email
@@ -656,17 +749,23 @@ showEditEmailForm?.addEventListener("click", (e) => {
   e.preventDefault();
   if (editEmailForm) {
     editEmailForm.style.display = editEmailForm.style.display === "none" ? "flex" : "none";
+    console.log("Form di modifica email mostrato/nascosto.");
   }
 });
 
 editEmailButton?.addEventListener("click", () => {
   const newEm = editEmailInput.value.trim();
-  if (!newEm) return;
+  if (!newEm) {
+    alert("Inserisci un'email valida.");
+    return;
+  }
+  console.log("Salvataggio nuova email:", newEm);
   saveUserData({ email: newEm })
     .then(d => {
       userData = d;
       if (emailOverlay) emailOverlay.style.display = "none";
       alert("Email aggiornata con successo!");
+      console.log("Email aggiornata:", d.email);
     })
     .catch(err => {
       console.error("Errore nell'aggiornamento dell'email:", err);
