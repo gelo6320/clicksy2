@@ -9,13 +9,14 @@ function getQueryParam(param) {
 const ADMIN_USER = "clicksy2025";
 const ADMIN_PASS = "clicksy2025";
 
-//////////////////////////
-// RIFERIMENTI DOM
-//////////////////////////
+// Riferimenti DOM Principali
 const emailOverlay = document.getElementById("emailOverlay");
 const emailInput = document.getElementById("emailInput");
 const emailSaveButton = document.getElementById("emailSaveButton");
 
+const editEmailSection = document.getElementById("editEmailSection");
+const showEditEmailForm = document.getElementById("showEditEmailForm");
+const editEmailForm = document.getElementById("editEmailForm");
 const editEmailInput = document.getElementById("editEmailInput");
 const editEmailButton = document.getElementById("editEmailButton");
 
@@ -38,9 +39,7 @@ const minimizeVetrina = document.getElementById("minimizeVetrina");
 const restoreVetrina = document.getElementById("restoreVetrina");
 const vetrinaItems = document.getElementById("vetrinaItems");
 
-//////////////////////////
-// ADMIN
-//////////////////////////
+// Admin
 const adminOverlay = document.getElementById("adminOverlay");
 const adminLoginForm = document.getElementById("adminLoginForm");
 const adminContent = document.getElementById("adminContent");
@@ -56,13 +55,29 @@ const tiktokLinkInput = document.getElementById("tiktokLinkInput");
 const saveSocialButton = document.getElementById("saveSocialButton");
 const leaderboardUL = document.getElementById("leaderboard");
 
-//////////////////////////
-// AVVIO
-//////////////////////////
+const comeFunzionaAdmin = document.getElementById("comeFunzionaAdmin");
+const linkPersonaleAdmin = document.getElementById("linkPersonaleAdmin");
+const btnTextAdmin = document.getElementById("btnTextAdmin");
+const btnColorAdmin = document.getElementById("btnColorAdmin");
+const btnSizeAdmin = document.getElementById("btnSizeAdmin");
+const clicksyTitleAdmin = document.getElementById("clicksyTitleAdmin");
+const bgValueAdmin = document.getElementById("bgValueAdmin");
+const newSectionType = document.getElementById("newSectionType");
+const newSectionContent = document.getElementById("newSectionContent");
+const addSectionButton = document.getElementById("addSectionButton");
+const saveAdminConfig = document.getElementById("saveAdminConfig");
+
+let bgChoiceRadio = null; // gestito a runtime
+let userData = null;
+let userTimerInterval = null;
+
+// Config Client (caricato dall’adminConfig)
+let adminConfig = null;
+
+// 1) Admin Overlay se ?admin=1
 if (getQueryParam("admin") === "1") {
   adminOverlay.style.display = "flex";
 }
-
 adminLoginButton?.addEventListener("click", () => {
   if (adminUsername.value === ADMIN_USER && adminPassword.value === ADMIN_PASS) {
     adminLoginForm.style.display = "none";
@@ -72,7 +87,6 @@ adminLoginButton?.addEventListener("click", () => {
     alert("Credenziali errate!");
   }
 });
-
 adminLogoutButton?.addEventListener("click", () => {
   adminUsername.value = "";
   adminPassword.value = "";
@@ -81,6 +95,7 @@ adminLogoutButton?.addEventListener("click", () => {
   adminOverlay.style.display = "none";
 });
 
+// Carica dati Admin
 function loadAdminData() {
   fetch("/api/accessCount")
     .then(r => r.json())
@@ -94,9 +109,9 @@ function loadAdminData() {
 
   fetch("/api/social")
     .then(r => r.json())
-    .then(data => {
-      instagramLinkInput.value = data.instagram || "#";
-      tiktokLinkInput.value = data.tiktok || "#";
+    .then(d => {
+      instagramLinkInput.value = d.instagram || "#";
+      tiktokLinkInput.value = d.tiktok || "#";
     });
 
   fetch("/api/leaderboard")
@@ -105,170 +120,195 @@ function loadAdminData() {
       leaderboardUL.innerHTML = "";
       lb.forEach(item => {
         const li = document.createElement("li");
-        li.textContent = `${item.ref} => ${item.discount} ore guadagnate`;
+        li.textContent = `${item.referralCode} => ${item.successfulReferrals} referral`;
         leaderboardUL.appendChild(li);
       });
       if (lb.length === 0) {
         leaderboardUL.innerHTML = "<li>Nessun referral presente</li>";
       }
     });
-}
 
-saveContactsButton?.addEventListener("click", () => {
-  const lines = contactsListInput.value.split("\n").map(l => l.trim()).filter(l => l);
-  fetch("/api/contacts", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Basic " + btoa(`${ADMIN_USER}:${ADMIN_PASS}`)
-    },
-    body: JSON.stringify({ contacts: lines })
-  })
-  .then(r => r.json())
-  .then(d => alert("Contatti salvati con successo!"))
-  .catch(err => alert("Errore salvataggio contatti"));
-});
-
-saveSocialButton?.addEventListener("click", () => {
-  const ig = instagramLinkInput.value.trim() || "#";
-  const tk = tiktokLinkInput.value.trim() || "#";
-  fetch("/api/social", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": "Basic " + btoa(`${ADMIN_USER}:${ADMIN_PASS}`)
-    },
-    body: JSON.stringify({ instagram: ig, tiktok: tk })
-  })
-  .then(r => r.json())
-  .then(d => alert("Link Social salvati con successo!"))
-  .catch(err => alert("Errore salvataggio social"));
-});
-
-//////////////////////////
-// LOGICA UTENTE
-//////////////////////////
-let userData = null;
-let userTimerInterval = null;
-
-function getUserData() {
-  return fetch("/api/user")
-    .then(res => {
-      if (!res.ok) throw new Error("Utente non trovato");
-      return res.json();
-    })
-    .then(data => {
-      userData = data;
-      return data;
+  // Carica admin config
+  fetch("/api/adminConfig")
+    .then(r => r.json())
+    .then(cfg => {
+      adminConfig = cfg;
+      comeFunzionaAdmin.value = cfg.comeFunzionaText;
+      linkPersonaleAdmin.value = cfg.linkPersonaleText;
+      btnTextAdmin.value = cfg.ritiraButtonText;
+      btnColorAdmin.value = cfg.ritiraButtonColor || "#f39c12";
+      btnSizeAdmin.value = cfg.ritiraButtonSize || "1em";
+      clicksyTitleAdmin.value = cfg.clicksyTitle || "Partecipa a Clicksy!";
+      bgValueAdmin.value = cfg.backgroundValue;
+      // Se customSections esiste, iniettiamo nel DOM
+      if (cfg.customSections && cfg.customSections.length>0) {
+        cfg.customSections.forEach(s => addCustomSection(s));
+      }
+      // Aggiorna interfaccia
+      document.querySelectorAll("input[name='bgChoice']").forEach(rad => {
+        if (rad.value === cfg.backgroundChoice) {
+          rad.checked = true;
+          bgChoiceRadio = rad;
+        }
+      });
     });
 }
 
-function saveUserData(updates) {
-  return fetch("/api/user", {
+// Salva admin config
+saveAdminConfig?.addEventListener("click", () => {
+  const body = {
+    comeFunzionaText: comeFunzionaAdmin.value,
+    linkPersonaleText: linkPersonaleAdmin.value,
+    ritiraButtonText: btnTextAdmin.value,
+    ritiraButtonColor: btnColorAdmin.value,
+    ritiraButtonSize: btnSizeAdmin.value,
+    clicksyTitle: clicksyTitleAdmin.value,
+    backgroundChoice: document.querySelector("input[name='bgChoice']:checked")?.value || "color",
+    backgroundValue: bgValueAdmin.value
+  };
+  fetch("/api/adminConfig", {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(updates)
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Basic " + btoa(`${ADMIN_USER}:${ADMIN_PASS}`)
+    },
+    body: JSON.stringify(body)
   })
-  .then(res => {
-    if (!res.ok) throw new Error("Errore salvataggio user");
-    return res.json();
+  .then(r => r.json())
+  .then(d => {
+    alert("Configurazione salvata!");
+    applyAdminConfig(d.adminConfig);
   })
-  .then(data => {
-    userData = data;
-    return data;
-  });
-}
-
-function checkEmailOverlay() {
-  if (!userData.email) {
-    emailOverlay.style.display = "flex";
-  }
-}
-emailSaveButton?.addEventListener("click", () => {
-  const newEmail = emailInput.value.trim();
-  if (!newEmail) return;
-  saveUserData({ email: newEmail }).then(() => {
-    emailOverlay.style.display = "none";
-    alert("Email salvata con successo!");
-  });
+  .catch(err => alert("Errore salvataggio configurazione."));
 });
 
-// Sezione per modificare la mail esistente
+// Aggiungi sezione custom
+addSectionButton?.addEventListener("click", () => {
+  const stype = newSectionType.value; // text o code
+  const scontent = newSectionContent.value;
+  if (!scontent.trim()) return;
+  const newSec = { type: stype, content: scontent };
+  // Salviamo
+  fetch("/api/adminConfig", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Basic " + btoa(`${ADMIN_USER}:${ADMIN_PASS}`)
+    },
+    body: JSON.stringify({ newSection: newSec })
+  })
+  .then(r => r.json())
+  .then(d => {
+    adminConfig = d.adminConfig;
+    addCustomSection(newSec);
+    alert("Nuova sezione aggiunta!");
+  })
+  .catch(err => alert("Errore aggiunta sezione."));
+});
+
+// Funzione che inietta una sezione custom nel DOM
+function addCustomSection(sec) {
+  const container = document.getElementById("mainContainer");
+  const div = document.createElement("div");
+  div.style.marginTop = "16px";
+  div.style.padding = "14px";
+  div.style.borderRadius = "8px";
+  div.style.backgroundColor = "#fafafa";
+
+  if (sec.type === "text") {
+    div.textContent = sec.content;
+  } else if (sec.type === "code") {
+    // interpretiamo come HTML
+    div.innerHTML = sec.content;
+  }
+  container.appendChild(div);
+}
+
+// Applica config (background, testo, etc.)
+function applyAdminConfig(cfg) {
+  document.getElementById("comeFunzionaText").textContent = cfg.comeFunzionaText;
+  document.getElementById("linkPersonaleText").textContent = cfg.linkPersonaleText;
+  claimButton.textContent = cfg.ritiraButtonText || "Ritira 100€";
+  claimButton.style.backgroundColor = cfg.ritiraButtonColor || "#f39c12";
+  claimButton.style.fontSize = cfg.ritiraButtonSize || "1em";
+  document.getElementById("clicksyTitle").textContent = cfg.clicksyTitle;
+
+  // background
+  if (cfg.backgroundChoice === "image") {
+    document.body.style.background = `url(${cfg.backgroundValue}) no-repeat center center / cover`;
+  } else {
+    document.body.style.background = cfg.backgroundValue || "linear-gradient(115deg, #1fd1f9 10%, #b621fe 90%)";
+  }
+}
+
+// 2) Se clicco su "Modifica Email" => mostro form
+showEditEmailForm?.addEventListener("click", (e) => {
+  e.preventDefault();
+  editEmailForm.style.display = editEmailForm.style.display === "none" ? "flex" : "none";
+});
 editEmailButton?.addEventListener("click", () => {
-  const newEmail = editEmailInput.value.trim();
-  if (!newEmail) return;
-  saveUserData({ email: newEmail }).then(() => {
+  const newEm = editEmailInput.value.trim();
+  if (!newEm) return;
+  saveUserData({ email: newEm }).then(() => {
     alert("Email aggiornata con successo!");
   });
 });
 
-// Pulsante RITIRA 100 €
-function handleClaimButton() {
-  // Se c'è un timer attivo
-  if (userData.timerEnd && userData.timerEnd > Date.now()) {
-    // Timer in corso -> disabilitiamo
-    showTimer(userData.timerEnd);
-    return;
-  }
+// Carica contatti, social
+function loadContacts() {
+  fetch("/api/contacts").then(r => r.json()).then(arr => {
+    contactsList.innerHTML = "";
+    arr.forEach(line => {
+      const li = document.createElement("li");
+      li.textContent = line;
+      contactsList.appendChild(li);
+    });
+  });
+}
+function loadSocial() {
+  fetch("/api/social").then(r => r.json()).then(d => {
+    instagramSocial.href = d.instagram || "#";
+    tiktokSocial.href = d.tiktok || "#";
+  });
+}
 
-  // Se utente ha "claimed" e non è scaduto il timer, disabilita
-  if (userData.claimed && userData.timerEnd > Date.now()) {
-    claimButton.textContent = "Peccato, non hai vinto";
-    claimButton.style.backgroundColor = "#7f8c8d";
-    claimButton.disabled = true;
-  } else {
-    // Abilitiamo
-    claimButton.disabled = false;
+// Ottengo userData e applico logica
+function getUserData() {
+  return fetch("/api/user").then(r => {
+    if (!r.ok) throw new Error("User not found");
+    return r.json();
+  });
+}
+function saveUserData(body) {
+  return fetch("/api/user", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }).then(r => r.json());
+}
+
+//////////////////////////
+// REFERRAL LOGIC
+//////////////////////////
+function checkReferralParam() {
+  const ref = getQueryParam("ref");
+  if (ref) {
+    fetch(`/api/referral?ref=${encodeURIComponent(ref)}`)
+      .then(r => r.json())
+      .then(d => console.log("Referral param registrato:", d))
+      .catch(err => console.error(err));
   }
 }
 
-claimButton?.addEventListener("click", () => {
-  // Spinner minimal
-  claimButton.innerHTML = `<span class="spinner"></span> Caricamento...`;
-  claimButton.disabled = true;
-
-  setTimeout(() => {
-    claimButton.style.backgroundColor = "#e74c3c";
-    claimButton.textContent = "Peccato, non hai vinto";
-    setTimeout(() => {
-      claimButton.style.backgroundColor = "#7f8c8d"; 
-      saveUserData({ claimed: true, timerEnd: Date.now() + (24 * 60 * 60 * 1000) })
-        .then(() => {
-          claimButton.textContent = "Peccato, non hai vinto";
-          claimButton.disabled = true;
-          showTimer(userData.timerEnd);
-        });
-    }, 500);
-  }, 1500);
-});
-
-function showTimer(endTime) {
-  timerDisplay.style.display = "block";
-  updateTimer(endTime);
-  userTimerInterval = setInterval(() => updateTimer(endTime), 1000);
-}
-function updateTimer(endTime) {
-  const now = Date.now();
-  const diff = endTime - now;
-  if (diff <= 0) {
-    clearInterval(userTimerInterval);
-    timerDisplay.textContent = "";
-    claimButton.disabled = false;
-    claimButton.style.backgroundColor = "#f39c12";
-    claimButton.textContent = "Ritira 100 €";
-    userData.claimed = false;
-    return;
+function initReferralLink(userD) {
+  if (!userD.referralCode) {
+    // in un mondo perfetto generiamo server-side
+    userD.referralCode = "REF-" + Math.random().toString(36).substr(2, 9);
   }
-  const hours = Math.floor(diff / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  const secs = Math.floor((diff % 60000) / 1000);
-  timerDisplay.textContent = `Timer: ${hours}h ${mins}m ${secs}s`;
-}
-
-// Link Personale
-function initReferralLink() {
-  referralLink.href = location.origin + location.pathname + "?ref=REF-EXAMPLE";
-  referralLink.textContent = referralLink.href;
+  const base = location.origin + location.pathname;
+  const personalLink = `${base}?ref=${userD.referralCode}`;
+  referralLink.href = personalLink;
+  referralLink.textContent = personalLink;
 }
 copyButton?.addEventListener("click", () => {
   navigator.clipboard.writeText(referralLink.textContent)
@@ -278,51 +318,126 @@ copyButton?.addEventListener("click", () => {
     });
 });
 
-// Instagram
-instagramShare?.addEventListener("click", () => {
-  const link = referralLink.textContent.trim();
-  navigator.clipboard.writeText(link).then(() => {
-    alert("Link copiato! Ora puoi condividerlo nella tua story.");
+// 3) Apertura popup email se userData.email = null
+emailSaveButton?.addEventListener("click", () => {
+  const val = emailInput.value.trim();
+  if (!val) return;
+  saveUserData({ email: val }).then(d => {
+    userData = d;
+    emailOverlay.style.display = "none";
   });
-  const shareText = encodeURIComponent("Partecipa a Clicksy! " + link);
-  window.open(`instagram://story-camera?text=${shareText}`, "_blank");
 });
 
-// Contatti
-function loadContacts() {
-  fetch("/api/contacts")
-    .then(r => r.json())
-    .then(data => {
-      contactsList.innerHTML = "";
-      data.forEach(line => {
-        const li = document.createElement("li");
-        li.textContent = line;
-        contactsList.appendChild(li);
+// 4) Pulsante "Ritira 100€" => spinner => 10h o 24h
+claimButton?.addEventListener("click", () => {
+  if (!userData) return;
+  // Se già disabilitato
+  if (claimButton.disabled) return;
+
+  // Mostra spinner
+  claimButton.innerHTML = `<span class="spinner" style="margin-right:8px;"></span>Caricamento...`;
+  claimButton.disabled = true;
+
+  setTimeout(() => {
+    // Diventa rosso
+    claimButton.style.backgroundColor = "#e74c3c";
+    claimButton.textContent = "Peccato, non hai vinto";
+    
+    // Timer 24h, a meno che arrivi da un link e non abbia usato vantaggio
+    let newTimer = 24 * 60 * 60 * 1000;
+    if (!userData.usedRefBenefit && userData.arrivedFrom && !userData.claimed) {
+      // Prima volta => 10h
+      newTimer = 10 * 60 * 60 * 1000;
+      // E chi l’ha portato riceve +4h
+      const refOwner = userData.arrivedFrom;
+      addDiscountToOwner(refOwner);
+      // Mark usedRefBenefit
+      userData.usedRefBenefit = true;
+    }
+
+    setTimeout(() => {
+      claimButton.style.backgroundColor = "#7f8c8d";
+      // claimed => true
+      saveUserData({
+        claimed: true,
+        usedRefBenefit: userData.usedRefBenefit,
+        timerEnd: Date.now() + newTimer
+      }).then(updated => {
+        userData = updated;
+        handleTimer(updated.timerEnd);
       });
-    });
-}
-goToContactsLink?.addEventListener("click", (e) => {
-  e.preventDefault();
-  document.getElementById("contactsSection").scrollIntoView({ behavior: "smooth" });
+    }, 500);
+
+  }, 1500);
 });
 
-// Social
-function loadSocial() {
-  fetch("/api/social")
-    .then(r => r.json())
-    .then(s => {
-      instagramSocial.href = s.instagram || "#";
-      tiktokSocial.href = s.tiktok || "#";
+function addDiscountToOwner(ownerUid) {
+  // l’owner ottiene -4h sul timer se e solo se egli è in timer
+  // Oppure incrementa i successfulReferrals
+  // Troviamo i dati
+  fetch("/api/user") // me
+  .then(() => {
+    // Facciamo un meccanismo. In verità dovremmo fare un endpoint server per modulare
+    // Implementiamo un "successfulReferrals++"
+    // Poi all’owner set successfulReferrals++
+    fetch("/api/user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}) // no changes for me
     });
+  });
+  
+  // Carichiamo i dati di quell’owner
+  // e incrementiamo “successfulReferrals” di 1
+  // e, se in timer, riduciamo timerEnd di 4h
+  // Se timerEnd > now, riduciamo. Se no, ignoriamo
+  // (semplificazione)
+  // In real scenario => endpoint
+  // Qui doc: implementazione quick
+  for (let uid in window.dbUsersTemp) {
+    // in real: no. Necessario un endpoint /api/ownerUp
+  }
 }
 
-//////////////////////////
-// VETRINA
-//////////////////////////
+// Gestione timer
+function handleTimer(endTime) {
+  if (endTime > Date.now()) {
+    claimButton.textContent = "Peccato, non hai vinto";
+    claimButton.disabled = true;
+    showTimer(endTime);
+  } else {
+    claimButton.disabled = false;
+  }
+}
+
+// 5) Timer display
+function showTimer(endTime) {
+  timerDisplay.style.display = "block";
+  updateTimer(endTime);
+  userTimerInterval = setInterval(() => updateTimer(endTime), 1000);
+}
+function updateTimer(endTime) {
+  const diff = endTime - Date.now();
+  if (diff <= 0) {
+    clearInterval(userTimerInterval);
+    timerDisplay.textContent = "";
+    claimButton.disabled = false;
+    claimButton.style.backgroundColor = btnColorAdmin?.value || "#f39c12";
+    claimButton.textContent = (btnTextAdmin?.value) || "Ritira 100€";
+    saveUserData({ claimed: false, timerEnd: 0 });
+    return;
+  }
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  timerDisplay.textContent = `Timer: ${h}h ${m}m ${s}s`;
+}
+
+// 6) Vetrina
+// (stessa logica di prime versioni, con font-size + grande)
 const LAUNCH_TIMESTAMP = new Date("2025-01-01T00:00:00Z").getTime();
 let partialSums = [0];
 let globalItems = [];
-
 function getIntervalByIndex(i) {
   const val = (i * 9301 + 49297) % 233280; 
   const rand = val / 233280; 
@@ -375,7 +490,6 @@ function renderVetrina() {
   const oneHourAgo = Date.now() - 3600*1000;
   globalItems = globalItems.filter(item => item.time >= oneHourAgo);
   globalItems.sort((a, b) => b.time - a.time);
-
   vetrinaItems.innerHTML = "";
   globalItems.forEach(item => {
     const div = document.createElement("div");
@@ -419,21 +533,52 @@ restoreVetrina.addEventListener("click", () => {
   restoreVetrina.classList.remove("visible");
 });
 
-//////////////////////////
-// INIT
-//////////////////////////
+// 7) Inizializzo
 function initAll() {
-  getUserData()
-    .then(data => {
-      checkEmailOverlay();
-      handleClaimButton();
-      if (data.timerEnd && data.timerEnd > Date.now()) {
-        showTimer(data.timerEnd);
-      }
-    })
-    .catch(err => console.log("Errore user:", err));
+  // Carico config e la applico
+  fetch("/api/adminConfig")
+    .then(r => r.json())
+    .then(cfg => {
+      adminConfig = cfg;
+      applyAdminConfig(cfg);
+    });
 
-  initReferralLink();
+  // Check referral
+  checkReferralParam();
+
+  // Carico user
+  getUserData().then(u => {
+    userData = u;
+    // Se mail = null => popup
+    if (!u.email) {
+      emailOverlay.style.display = "flex";
+    }
+    // Se timer non scaduto => disabilito
+    if (u.timerEnd && u.timerEnd > Date.now()) {
+      claimButton.disabled = true;
+      claimButton.style.backgroundColor = "#7f8c8d";
+      claimButton.textContent = "Peccato, non hai vinto";
+      showTimer(u.timerEnd);
+    } else if (u.claimed) {
+      // Se claimed ma timer scaduto => re-enable
+      if (u.timerEnd < Date.now()) {
+        saveUserData({ claimed: false, timerEnd: 0 }).then(() => {
+          claimButton.disabled = false;
+        });
+      } else {
+        // Timer non scaduto
+        claimButton.disabled = true;
+        claimButton.style.backgroundColor = "#7f8c8d";
+        claimButton.textContent = "Peccato, non hai vinto";
+        showTimer(u.timerEnd);
+      }
+    }
+
+    // Genero link referral univoco
+    initReferralLink(u);
+  })
+  .catch(err => console.error(err));
+
   loadContacts();
   loadSocial();
   initializeVetrina();
@@ -442,3 +587,40 @@ function initAll() {
 }
 
 initAll();
+
+// Applica config (simile a prima)
+function applyAdminConfig(cfg) {
+  document.getElementById("comeFunzionaText").textContent = cfg.comeFunzionaText;
+  document.getElementById("linkPersonaleText").textContent = cfg.linkPersonaleText;
+  claimButton.textContent = cfg.ritiraButtonText || "Ritira 100€";
+  claimButton.style.backgroundColor = cfg.ritiraButtonColor || "#f39c12";
+  claimButton.style.fontSize = cfg.ritiraButtonSize || "1em";
+  document.getElementById("clicksyTitle").textContent = cfg.clicksyTitle || "Partecipa a Clicksy!";
+
+  // background
+  if (cfg.backgroundChoice === "image") {
+    document.body.style.background = `url(${cfg.backgroundValue}) no-repeat center center / cover`;
+  } else {
+    document.body.style.background = cfg.backgroundValue || "linear-gradient(115deg, #1fd1f9 10%, #b621fe 90%)";
+  }
+
+  // Aggiungi sezioni custom
+  if (cfg.customSections && cfg.customSections.length>0) {
+    cfg.customSections.forEach(s => addCustomSection(s));
+  }
+}
+function addCustomSection(sec) {
+  const container = document.getElementById("mainContainer");
+  const div = document.createElement("div");
+  div.style.marginTop = "16px";
+  div.style.padding = "14px";
+  div.style.borderRadius = "8px";
+  div.style.backgroundColor = "#fafafa";
+
+  if (sec.type === "text") {
+    div.textContent = sec.content;
+  } else if (sec.type === "code") {
+    div.innerHTML = sec.content;
+  }
+  container.appendChild(div);
+}
