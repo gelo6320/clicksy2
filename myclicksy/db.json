@@ -1,19 +1,14 @@
 {
-  "users": {
-    "user-ireeattxl": {
-      "email": null,
-      "claimed": true,
-      "timerEnd": 1736258163950
-    }
+  "name": "myclicksy",
+  "version": "1.0.0",
+  "description": "Progetto con server-side per Clicksy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
   },
-  "refDiscounts": {},
-  "contacts": [
-    "Email: support@clicksy.com",
-    "Telefono: +39 123 4567 890"
-  ],
-  "social": {
-    "instagram": "#",
-    "tiktok": "#"
-  },
-  "totalAccessCount": 25
+  "dependencies": {
+    "body-parser": "^1.20.2",
+    "cookie-parser": "^1.4.6",
+    "express": "^4.18.2"
+  }
 }
