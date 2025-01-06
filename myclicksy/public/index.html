@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div class="container">
+  <div class="container" id="mainContainer">
     <!-- Social in alto a destra -->
     <div class="social-section" id="socialSection">
       <span>Seguici su</span>
@@ -25,15 +25,18 @@
       </a>
     </div>
 
-    <!-- Titolo -->
-    <h1 class="gradient-text" style="margin-top:40px;">Partecipa a Clicksy!</h1>
+    <!-- Titolo personalizzabile da Admin -->
+    <h1 class="gradient-text" id="clicksyTitle" style="margin-top:40px;">
+      Partecipa a Clicksy!
+    </h1>
+
     <div class="small-warning">
       Clicksy è completamente gratuito. Diffida da chi ti chiede pagamenti.
     </div>
 
-    <!-- Pulsante RITIRA 100€ -->
-    <button id="claimButton" class="btn-ritira">
-      Ritira 100 <strong>€</strong>
+    <!-- Pulsante "Ritira 100€" -->
+    <button id="claimButton" class="btn-ritira" style="margin-bottom: 12px;">
+      Ritira 100<strong>€</strong>
     </button>
     <div class="timer" id="timerDisplay"></div>
 
@@ -42,12 +45,12 @@
       Problemi o suggerimenti? <a href="#contactsSection" id="goToContactsLink">contattaci</a>
     </div>
 
-    <!-- Vetrina Link Personale, Instagram, "Come funziona?"... (solo come esempio) -->
+    <!-- SEZIONE REFERRAL -->
     <div class="referral-section">
       <span class="referral-title">Il tuo link personale:</span>
-      <p class="referral-description">
-        Ogni click sul tuo link fa risparmiare ore di attesa.
-        Chi riceve parte con meno ore la prima volta!
+      <p class="referral-description" id="linkPersonaleText">
+        <!-- Testo default, modificabile da admin -->
+        Ogni click sul tuo link fa risparmiare ore di attesa!
       </p>
       <div class="referral-row">
         <div class="referral-link-box">
@@ -63,6 +66,7 @@
       </div>
     </div>
 
+    <!-- Sezione "Condividi su Instagram" -->
     <div class="share-instagram">
       <h2 class="share-instagram-title">Condividi su Instagram!</h2>
       <div class="share-instagram-content" id="instagramShare">
@@ -77,13 +81,12 @@
       </div>
     </div>
 
-    <div class="instructions come-funziona">
+    <!-- Sezione "Come funziona?" personalizzabile -->
+    <div class="instructions come-funziona" id="comeFunzionaContainer">
       <details>
         <summary>Come funziona?</summary>
-        <p style="margin-top:8px; font-size:0.85em; line-height:1.4;">
-          1) Una volta inserita la mail (per poterti inviare il premio), potrai cliccare su <em>Ritira 100€</em>. <br/>
-          2) Se il tempo di 24 ore è scaduto, puoi riprovare. <br/>
-          3) Se arrivi da un link, potresti avere un vantaggio. <br/>
+        <p id="comeFunzionaText" style="margin-top:8px; font-size:0.85em; line-height:1.4;">
+          Testo standard su come funziona.
         </p>
       </details>
     </div>
@@ -94,36 +97,39 @@
       <ul id="contactsList"></ul>
     </section>
 
-    <!-- Sezione per Modificare la Mail inserita -->
-    <div class="edit-email-section">
-      <h2>Modifica la tua Email</h2>
-      <div class="edit-email-container">
-        <input type="email" id="editEmailInput" placeholder="Inserisci nuova email"/>
-        <button id="editEmailButton">Aggiorna Email</button>
+    <!-- Sezione "Aggiorna Email": appare box solo al click -->
+    <div class="edit-email-section" id="editEmailSection">
+      <h2>Aggiorna la tua Email</h2>
+      <p style="font-size:0.8em; color:#555;">
+        <a href="#" id="showEditEmailForm">Modifica Email</a>
+      </p>
+      <div class="edit-email-container" id="editEmailForm" style="display:none; margin-top:8px;">
+        <input type="email" id="editEmailInput" placeholder="Nuova Email"/>
+        <button id="editEmailButton">Salva</button>
       </div>
     </div>
 
-    <footer>
-      <p>&copy; 2025 Clicksy. Tutti i diritti riservati.</p>
+    <footer style="font-size:0.6em; color:rgba(0,0,0,0.4); margin-top:30px;">
+      &copy; 2025 Clicksy. Tutti i diritti riservati.
     </footer>
   </div>
 
-  <!-- Popup che richiede la mail la prima volta (niente pop up email/pulsante vecchi) -->
+  <!-- POPUP EMAIL all’ingresso -->
   <div id="emailOverlay">
     <div class="email-modal">
       <h2>Inserisci la tua email</h2>
-      <p>Ci serve per inviarti il premio in caso di vincita, solo la prima volta!</p>
+      <p>Per inviarti il premio in caso di vincita (solo la prima volta):</p>
       <div class="email-row">
         <span class="email-label">Email</span>
-        <input type="email" id="emailInput" placeholder="tuo@email.com"/>
+        <input type="email" id="emailInput" placeholder="esempio@email.com"/>
       </div>
       <button id="emailSaveButton">Salva Email</button>
     </div>
   </div>
 
-  <!-- Vetrina Ultime Vincite -->
+  <!-- Vetrina Ultime Vincite (testo più grande) -->
   <div id="vetrinaScorrevole" class="show">
-    <h2>Ultime Vincite</h2>
+    <h2 style="font-size:1em;">Ultime Vincite</h2>
     <div id="minimizeVetrina"></div>
     <div id="vetrinaItems"></div>
   </div>
@@ -134,7 +140,7 @@
     />
   </div>
 
-  <!-- Admin Overlay se ?admin=1 -->
+  <!-- Admin Overlay (login form), appare con ?admin=1 -->
   <div id="adminOverlay" style="display:none;">
     <div class="admin-modal">
       <h2>Admin Dashboard</h2>
@@ -154,21 +160,44 @@
           <p><strong>Numero totale di accessi:</strong> <span id="totalAccessCount"></span></p>
         </div>
 
-        <h3>Contatti</h3>
+        <h3>Testi Personalizzabili</h3>
         <div class="admin-section">
-          <label for="contactsListInput">Elenco contatti (uno per riga):</label>
-          <textarea id="contactsListInput" rows="4" style="width:100%;"></textarea>
-          <button id="saveContactsButton">Salva Contatti</button>
+          <label for="comeFunzionaAdmin">Testo "Come Funziona":</label>
+          <textarea id="comeFunzionaAdmin" rows="2"></textarea>
+
+          <label for="linkPersonaleAdmin">Testo "Link Personale":</label>
+          <textarea id="linkPersonaleAdmin" rows="2"></textarea>
+
+          <label for="btnTextAdmin">Testo pulsante "Ritira":</label>
+          <input id="btnTextAdmin" type="text" placeholder='Es: "Ritira 100€"'/>
+
+          <label for="btnColorAdmin">Colore pulsante:</label>
+          <input id="btnColorAdmin" type="color" />
+
+          <label for="btnSizeAdmin">Dimensione testo pulsante:</label>
+          <input id="btnSizeAdmin" type="text" placeholder='1.2em, 18px, etc.' />
+
+          <label for="clicksyTitleAdmin">Titolo "Partecipa a Clicksy!":</label>
+          <input id="clicksyTitleAdmin" type="text" placeholder='Es: "Entra in Clicksy!"'/>
+
+          <h4>Sfondo del sito</h4>
+          <label><input type="radio" name="bgChoice" value="color" checked> Colore/Gradient</label>
+          <label><input type="radio" name="bgChoice" value="image"> Immagine</label>
+          <input id="bgValueAdmin" type="text" placeholder='Es: "linear-gradient(...)" o "url(...)"' />
         </div>
 
-        <h3>Social</h3>
+        <h3>Aggiungi Nuova Sezione</h3>
         <div class="admin-section">
-          <label for="instagramLinkInput">Instagram:</label>
-          <input id="instagramLinkInput" type="text" placeholder="https://instagram.com/..."/>
-          <label for="tiktokLinkInput">TikTok:</label>
-          <input id="tiktokLinkInput" type="text" placeholder="https://tiktok.com/@..."/>
-          <button id="saveSocialButton">Salva Social</button>
+          <label>Tipo di sezione:</label>
+          <select id="newSectionType">
+            <option value="text">Testo Semplice</option>
+            <option value="code">Codice (HTML/CSS/JS)</option>
+          </select>
+          <textarea id="newSectionContent" rows="4" placeholder="Inserisci testo o codice"></textarea>
+          <button id="addSectionButton">Aggiungi Sezione</button>
         </div>
+
+        <button id="saveAdminConfig" style="margin-top:12px; background-color:#2ecc71; color:#fff;">Salva Configurazione</button>
 
         <h3>Classifica Referral</h3>
         <ul id="leaderboard"></ul>
