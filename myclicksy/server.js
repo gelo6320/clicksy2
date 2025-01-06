@@ -9,6 +9,7 @@ const path = require("path");
 
 let db = require("./db.json");
 
+// Credenziali Admin
 const ADMIN_USER = "clicksy2025";
 const ADMIN_PASS = "clicksy2025";
 
@@ -17,13 +18,13 @@ const PORT = process.env.PORT || 3000;
 
 app.use(bodyParser.json());
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, "public"))); // serve index.html, style.css, main.js
+app.use(express.static(path.join(__dirname, "public"))); // serve i file statici
 
 function saveDB() {
   fs.writeFileSync(path.join(__dirname, "db.json"), JSON.stringify(db, null, 2));
 }
 
-// 1) Genera userId se non c’è
+// Genera userId se non esiste
 app.use((req, res, next) => {
   if (!req.cookies.userId) {
     const newUserId = "user-" + Math.random().toString(36).substr(2, 9);
@@ -31,14 +32,18 @@ app.use((req, res, next) => {
     db.users[newUserId] = {
       email: null,
       claimed: false,
-      timerEnd: 0
+      timerEnd: 0,
+      referralCode: "REF-" + Math.random().toString(36).substr(2, 9),
+      usedRefBenefit: false,
+      arrivedFrom: null,
+      successfulReferrals: 0
     };
     saveDB();
   }
   next();
 });
 
-// 2) Contatore accessi
+// Contatore accessi
 app.use((req, res, next) => {
   db.totalAccessCount++;
   saveDB();
@@ -51,28 +56,40 @@ app.use((req, res, next) => {
   ================================
 */
 app.get("/api/user", (req, res) => {
-  const userId = req.cookies.userId;
-  if (!userId || !db.users[userId]) {
+  const uid = req.cookies.userId;
+  if (!uid || !db.users[uid]) {
     return res.status(400).json({ error: "Utente non trovato" });
   }
-  res.json(db.users[userId]);
+  res.json(db.users[uid]);
 });
 
 app.post("/api/user", (req, res) => {
-  const userId = req.cookies.userId;
-  if (!userId) {
+  const uid = req.cookies.userId;
+  if (!uid) {
     return res.status(400).json({ error: "Cookie utente mancante" });
   }
-  if (!db.users[userId]) {
-    db.users[userId] = { email: null, claimed: false, timerEnd: 0 };
+  if (!db.users[uid]) {
+    // Creiamo entry se non esiste
+    db.users[uid] = {
+      email: null,
+      claimed: false,
+      timerEnd: 0,
+      referralCode: "REF-" + Math.random().toString(36).substr(2, 9),
+      usedRefBenefit: false,
+      arrivedFrom: null,
+      successfulReferrals: 0
+    };
   }
-  const userData = db.users[userId];
+  let userData = db.users[uid];
 
   if (req.body.email !== undefined) userData.email = req.body.email;
   if (req.body.claimed !== undefined) userData.claimed = req.body.claimed;
   if (req.body.timerEnd !== undefined) userData.timerEnd = req.body.timerEnd;
+  if (req.body.usedRefBenefit !== undefined) userData.usedRefBenefit = req.body.usedRefBenefit;
+  if (req.body.arrivedFrom !== undefined) userData.arrivedFrom = req.body.arrivedFrom;
+  if (req.body.successfulReferrals !== undefined) userData.successfulReferrals = req.body.successfulReferrals;
 
-  db.users[userId] = userData;
+  db.users[uid] = userData;
   saveDB();
   res.json(userData);
 });
@@ -81,18 +98,42 @@ app.post("/api/user", (req, res) => {
   ================================
   API REFERRAL
   ================================
+  
+  - /api/referral?ref=XXXX => l’utente in arrivo registra "arrivedFrom" e timer ridotto a 10h se non ha mai cliccato prima.
+  - La persona "ref" (il proprietario di quel referral) otterrà +4 ore SOLO dopo che questo utente clicca effettivamente.
 */
 app.get("/api/referral", (req, res) => {
   const { ref } = req.query;
   if (!ref) {
     return res.status(400).json({ error: "Parametro ref mancante" });
   }
-  if (!db.refDiscounts[ref]) {
-    db.refDiscounts[ref] = 0;
+
+  // Trovare chi ha referralCode = ref
+  let ownerUid = null;
+  for (let uid in db.users) {
+    if (db.users[uid].referralCode === ref) {
+      ownerUid = uid;
+      break;
+    }
   }
-  db.refDiscounts[ref] += 4;
-  saveDB();
-  res.json({ message: "Referral incrementato", ref, totalDiscount: db.refDiscounts[ref] });
+  if (!ownerUid) {
+    return res.json({ message: "Referral non trovato", ref });
+  }
+
+  // Se il visitatore è lo stesso proprietario => no sense
+  const visitorId = req.cookies.userId;
+  if (visitorId === ownerUid) {
+    return res.json({ message: "Stesso utente, nessun referral", ref });
+  }
+
+  // Salviamo arrivedFrom (solo se non l'ha mai definito)
+  let visitorData = db.users[visitorId];
+  if (!visitorData.arrivedFrom) {
+    visitorData.arrivedFrom = ownerUid;
+    saveDB();
+  }
+
+  res.json({ message: "OK, referral registrato", ref, ownerUid });
 });
 
 /*
@@ -103,7 +144,6 @@ app.get("/api/referral", (req, res) => {
 app.get("/api/contacts", (req, res) => {
   res.json(db.contacts);
 });
-
 app.post("/api/contacts", (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "Non autorizzato" });
@@ -130,7 +170,6 @@ app.post("/api/contacts", (req, res) => {
 app.get("/api/social", (req, res) => {
   res.json(db.social);
 });
-
 app.post("/api/social", (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "Non autorizzato" });
@@ -141,6 +180,7 @@ app.post("/api/social", (req, res) => {
   if (u !== ADMIN_USER || p !== ADMIN_PASS) {
     return res.status(401).json({ error: "Credenziali Admin errate" });
   }
+
   const { instagram, tiktok } = req.body;
   if (instagram !== undefined) db.social.instagram = instagram;
   if (tiktok !== undefined) db.social.tiktok = tiktok;
@@ -161,11 +201,61 @@ app.get("/api/accessCount", (req, res) => {
   ================================
   API LEADERBOARD
   ================================
+  => restituisce array di {referralCode, successfulReferrals}
 */
 app.get("/api/leaderboard", (req, res) => {
-  const arr = Object.entries(db.refDiscounts).map(([ref, discount]) => ({ ref, discount }));
-  arr.sort((a, b) => b.discount - a.discount);
+  let arr = [];
+  for (let uid in db.users) {
+    const u = db.users[uid];
+    arr.push({
+      referralCode: u.referralCode,
+      successfulReferrals: u.successfulReferrals
+    });
+  }
+  arr.sort((a,b) => b.successfulReferrals - a.successfulReferrals);
   res.json(arr);
+});
+
+/*
+  ================================
+  API ADMINCONFIG
+  (per modificare testi, pulsante, sfondo, sezioni, ecc.)
+  ================================
+*/
+app.get("/api/adminConfig", (req, res) => {
+  res.json(db.adminConfig);
+});
+app.post("/api/adminConfig", (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "Non autorizzato" });
+
+  const base64 = authHeader.split(" ")[1];
+  const decoded = Buffer.from(base64, "base64").toString("ascii");
+  const [u, p] = decoded.split(":");
+  if (u !== ADMIN_USER || p !== ADMIN_PASS) {
+    return res.status(401).json({ error: "Credenziali Admin errate" });
+  }
+
+  let config = db.adminConfig;
+
+  // Aggiorna i campi se presenti
+  if (req.body.comeFunzionaText !== undefined) config.comeFunzionaText = req.body.comeFunzionaText;
+  if (req.body.linkPersonaleText !== undefined) config.linkPersonaleText = req.body.linkPersonaleText;
+  if (req.body.ritiraButtonText !== undefined) config.ritiraButtonText = req.body.ritiraButtonText;
+  if (req.body.ritiraButtonColor !== undefined) config.ritiraButtonColor = req.body.ritiraButtonColor;
+  if (req.body.ritiraButtonSize !== undefined) config.ritiraButtonSize = req.body.ritiraButtonSize;
+  if (req.body.backgroundChoice !== undefined) config.backgroundChoice = req.body.backgroundChoice;
+  if (req.body.backgroundValue !== undefined) config.backgroundValue = req.body.backgroundValue;
+  if (req.body.clicksyTitle !== undefined) config.clicksyTitle = req.body.clicksyTitle;
+
+  // Aggiunta nuove sezioni
+  if (req.body.newSection) {
+    config.customSections.push(req.body.newSection);
+  }
+
+  db.adminConfig = config;
+  saveDB();
+  res.json({ message: "Admin config salvato con successo", adminConfig: config });
 });
 
 /*
